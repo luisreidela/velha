@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jogo da Velha Limitado - Avançado</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --text-color: #f3f4f6;
+      --cell-bg: rgba(255, 255, 255, 0.1);
+      --cell-hover: rgba(255, 255, 255, 0.25);
+      --shadow: 0 8px 20px rgb(0 0 0 / 0.2);
+    }
+
+    [data-theme="dark"] {
+      --bg-gradient: linear-gradient(135deg, #1e3a8a 0%, #3b0764 100%);
+      --text-color: #e0e7ff;
+      --cell-bg: rgba(255, 255, 255, 0.05);
+      --cell-hover: rgba(255, 255, 255, 0.15);
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2rem;
+      color: var(--text-color);
+      transition: background 0.5s;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-shadow: 0 0 6px rgba(0,0,0,0.3);
+      margin-bottom: 1rem;
+    }
+
+    .cell {
+      width: clamp(80px, 15vw, 120px);
+      height: clamp(80px, 15vw, 120px);
+      border: 3px solid #ddd6fe;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s, transform 0.15s, opacity 0.3s;
+      border-radius: 0.5rem;
+      background-color: var(--cell-bg);
+      box-shadow: 0 4px 6px rgb(0 0 0 / 0.1);
+    }
+
+    .cell:hover:not(.disabled) {
+      background-color: var(--cell-hover);
+      transform: scale(1.05);
+    }
+
+    .cell.placing {
+      animation: placeAnim 0.3s ease-in-out;
+    }
+
+    .cell.removing {
+      animation: removeAnim 0.3s ease-in-out;
+      opacity: 0;
+    }
+
+    @keyframes placeAnim {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes removeAnim {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0.5); opacity: 0; }
+    }
+
+    .x-mark {
+      color: #f87171;
+      text-shadow: 0 0 8px #f87171aa;
+    }
+
+    .o-mark {
+      color: #60a5fa;
+      text-shadow: 0 0 8px #60a5faaa;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, clamp(80px, 15vw, 120px));
+      grid-template-rows: repeat(3, clamp(80px, 15vw, 120px));
+      gap: 12px;
+      margin: 1.5rem 0 2rem 0;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 1rem;
+      border-radius: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .message {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      text-align: center;
+      text-shadow: 0 0 6px rgba(0,0,0,0.3);
+      transition: color 0.3s;
+    }
+
+    .turn { color: #a3e635; }
+    .winner {
+      color: #facc15;
+      animation: winnerPulse 1s infinite;
+    }
+    .draw { color: #9ca3af; }
+
+    @keyframes winnerPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    button {
+      background-color: #8b5cf6;
+      color: white;
+      font-weight: 700;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 10px rgb(139 92 246 / 0.5);
+      transition: background-color 0.3s, transform 0.2s;
+      cursor: pointer;
+      margin: 0.5rem;
+    }
+
+    button:hover {
+      background-color: #7c3aed;
+      transform: scale(1.1);
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      margin: 1rem 0;
+    }
+
+    .toggle-label {
+      margin-right: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #2196F3;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: var(--cell-bg);
+      padding: 2rem;
+      border-radius: 1rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+      animation: modalPop 0.3s ease-in-out;
+      max-width: 90%;
+      width: 400px;
+    }
+
+    @keyframes modalPop {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .history {
+      background: var(--cell-bg);
+      padding: 1rem;
+      border-radius: 0.75rem;
+      max-width: 320px;
+      width: 100%;
+      margin-top: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .history.show {
+      display: block;
+    }
+
+    .history ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .history li {
+      font-size: 1rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .timer {
+      font-size: 1.25rem;
+      margin: 0.5rem 0;
+      color: #facc15;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 2rem; }
+      .message { font-size: 1.5rem; }
+      .board {
+        grid-template-columns: repeat(3, clamp(60px, 12vw, 80px));
+        grid-template-rows: repeat(3, clamp(60px, 12vw, 80px));
+        gap: 8px;
+      }
+      .cell {
+        font-size: clamp(1.5rem, 4vw, 2.5rem);
+      }
+      button { padding: 0.5rem 1rem; }
+      .modal-content { width: 90%; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Jogo da Velha Limitado</h1>
+  <p class="message turn" id="message">Vez do jogador X</p>
+  <p class="timer" id="timer">Tempo: 30s</p>
+
+  <div class="board" id="board" aria-label="Tabuleiro do jogo da velha"></div>
+
+  <div class="flex flex-wrap justify-center gap-4">
+    <div class="toggle-container">
+      <label class="toggle-label">Jogar contra IA?</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="aiToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-container">
+      <label class="toggle-label">Tema Escuro</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="themeToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-container">
+      <label class="toggle-label">Som</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="soundToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap justify-center gap-4">
+    <select id="difficulty" class="bg-[#8b5cf6] text-white p-2 rounded-lg">
+      <option value="easy">Fácil</option>
+      <option value="medium" selected>Médio</option>
+      <option value="hard">Difícil</option>
+    </select>
+    <button id="resetBtn" aria-label="Reiniciar jogo">Reiniciar Jogo</button>
+    <button id="resetRankingBtn" aria-label="Resetar ranking">Resetar Ranking</button>
+    <button id="toggleHistoryBtn" aria-label="Mostrar/esconder histórico">Mostrar Histórico</button>
+  </div>
+
+  <section class="ranking" aria-label="Ranking de vitórias">
+    <h2>Ranking de Vitórias</h2>
+    <ul class="flex justify-around">
+      <li>Jogador X <span id="winsX" aria-live="polite" aria-atomic="true">0</span></li>
+      <li>Jogador O <span id="winsO" aria-live="polite" aria-atomic="true">0</span></li>
+      <li>Empates <span id="draws" aria-live="polite" aria-atomic="true">0</span></li>
+    </ul>
+  </section>
+
+  <section class="history" id="history" aria-label="Histórico de jogadas">
+    <h2>Histórico de Jogadas</h2>
+    <ul id="historyList"></ul>
+  </section>
+
+  <div class="modal" id="gameOverModal" role="dialog" aria-labelledby="modalMessage">
+    <div class="modal-content">
+      <p id="modalMessage" class="text-xl font-bold"></p>
+      <button id="closeModalBtn" aria-label="Fechar modal">OK</button>
+    </div>
+  </div>
+
+  <canvas id="particleCanvas"></canvas>
+
+  <audio id="placeSound" src="https://freesound.org/data/previews/612/612610_5674468-lq.mp3" preload="auto"></audio>
+  <audio id="winSound" src="https://freesound.org/data/previews/387/387178_7252654-lq.mp3" preload="auto"></audio>
+  <audio id="drawSound" src="https://freesound.org/data/previews/243/243748_1774764-lq.mp3" preload="auto"></audio>
+
+  <script>
+    // Elementos do DOM
+    const boardElement = document.getElementById('board');
+    const messageElement = document.getElementById('message');
+    const timerElement = document.getElementById('timer');
+    const resetBtn = document.getElementById('resetBtn');
+    const resetRankingBtn = document.getElementById('resetRankingBtn');
+    const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
+    const winsXElement = document.getElementById('winsX');
+    const winsOElement = document.getElementById('winsO');
+    const drawsElement = document.getElementById('draws');
+    const aiToggle = document.getElementById('aiToggle');
+    const themeToggle = document.getElementById('themeToggle');
+    const soundToggle = document.getElementById('soundToggle');
+    const difficultySelect = document.getElementById('difficulty');
+    const gameOverModal = document.getElementById('gameOverModal');
+    const modalMessage = document.getElementById('modalMessage');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const historyElement = document.getElementById('history');
+    const historyList = document.getElementById('historyList');
+    const particleCanvas = document.getElementById('particleCanvas');
+    const ctx = particleCanvas.getContext('2d');
+
+    const placeSound = document.getElementById('placeSound');
+    const winSound = document.getElementById('winSound');
+    const drawSound = document.getElementById('drawSound');
+
+    // Estado do jogo
+    let board = [['', '', ''], ['', '', ''], ['', '', '']];
+    let currentPlayer = 'X';
+    let placementsX = [];
+    let placementsO = [];
+    let gameActive = true;
+    let winner = null;
+    let isAI = aiToggle.checked;
+    let isSound = soundToggle.checked;
+    let moveHistory = [];
+    let timer = 30;
+    let timerInterval = null;
+
+    // Carrega configurações
+    let winsX = parseInt(localStorage.getItem('winsX')) || 0;
+    let winsO = parseInt(localStorage.getItem('winsO')) || 0;
+    let draws = parseInt(localStorage.getItem('draws')) || 0;
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.body.dataset.theme = savedTheme;
+    themeToggle.checked = savedTheme === 'dark';
+    isSound = localStorage.getItem('sound') !== 'false';
+    soundToggle.checked = isSound;
+
+    // Partículas para vitória
+    let particles = [];
+    function createParticles(x, y, color) {
+      for (let i = 0; i < 30; i++) {
+        particles.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          radius: Math.random() * 5 + 2,
+          color,
+          alpha: 1
+        });
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+      particles = particles.filter(p => p.alpha > 0);
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.02;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `${p.color}${Math.floor(p.alpha * 255).toString(16).padStart(2, '0')}`;
+        ctx.fill();
+      });
+      if (particles.length) requestAnimationFrame(animateParticles);
+    }
+
+    // Ajusta canvas
+    function resizeCanvas() {
+      particleCanvas.width = window.innerWidth;
+      particleCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // UI helpers
+    function updateWinsDisplay() {
+      winsXElement.textContent = winsX;
+      winsOElement.textContent = winsO;
+      drawsElement.textContent = draws;
+    }
+
+    function saveWins() {
+      localStorage.setItem('winsX', winsX);
+      localStorage.setItem('winsO', winsO);
+      localStorage.setItem('draws', draws);
+    }
+
+    function updateMessage() {
+      if (!gameActive) return;
+      messageElement.textContent = `Vez do jogador ${currentPlayer}`;
+      messageElement.className = 'message turn';
+    }
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timer = 30;
+      timerElement.textContent = `Tempo: ${timer}s`;
+      timerInterval = setInterval(() => {
+        timer--;
+        timerElement.textContent = `Tempo: ${timer}s`;
+        if (timer <= 0) {
+          currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+          updateMessage();
+          if (isAI && currentPlayer === 'O') setTimeout(iaPlay, 600);
+          startTimer();
+        }
+      }, 1000);
+    }
+
+    /**
+     * Renderiza o tabuleiro com animações
+     */
+    function renderBoard() {
+      boardElement.innerHTML = '';
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          const cell = document.createElement('div');
+          cell.className = `cell ${gameActive && !board[i][j] ? '' : 'disabled'}`;
+          cell.setAttribute('role', 'button');
+          cell.setAttribute('tabindex', '0');
+          cell.setAttribute('aria-label', `Linha ${i + 1} coluna ${j + 1}, ${board[i][j] || 'vazio'}`);
+          cell.textContent = board[i][j];
+          if (board[i][j] === 'X') cell.classList.add('x-mark');
+          if (board[i][j] === 'O') cell.classList.add('o-mark');
+
+          cell.addEventListener('click', () => handleCellClick(i, j));
+          cell.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleCellClick(i, j);
+            }
+          });
+
+          boardElement.appendChild(cell);
+        }
+      }
+    }
+
+    /**
+     * Manipula clique na célula
+     * @param {number} row - Linha da célula
+     * @param {number} col - Coluna da célula
+     */
+    function handleCellClick(row, col) {
+      if (!gameActive || board[row][col] !== '') return;
+
+      let placements = currentPlayer === 'X' ? placementsX : placementsO;
+      let removedCell = null;
+
+      if (placements.length >= 3) {
+        const oldest = placements.shift();
+        board[oldest.row][oldest.col] = '';
+        removedCell = { row: oldest.row, col: oldest.col };
+      }
+
+      board[row][col] = currentPlayer;
+      placements.push({ row, col, timestamp: Date.now() });
+      moveHistory.push(`${currentPlayer} jogou na linha ${row + 1}, coluna ${col + 1}`);
+      updateHistory();
+
+      if (isSound) placeSound.play();
+
+      renderBoard();
+
+      if (removedCell) {
+        const removedElem = boardElement.children[removedCell.row * 3 + removedCell.col];
+        removedElem.classList.add('removing');
+        setTimeout(() => removedElem.classList.remove('removing'), 300);
+      }
+
+      const newElem = boardElement.children[row * 3 + col];
+      newElem.classList.add('placing');
+
+      checkWinner();
+
+      if (gameActive && isBoardFull()) {
+        showModal('Empate!');
+        messageElement.textContent = 'Empate!';
+        messageElement.className = 'message draw';
+        gameActive = false;
+        draws++;
+        saveWins();
+        updateWinsDisplay();
+        if (isSound) drawSound.play();
+      }
+
+      if (gameActive) {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        updateMessage();
+        startTimer();
+      }
+
+      if (gameActive && isAI && currentPlayer === 'O') {
+        setTimeout(iaPlay, 600);
+      }
+    }
+
+    /**
+     * Verifica se há vencedor
+     */
+    function checkWinner() {
+      const lines = [
+        [board[0][0], board[0][1], board[0][2]],
+        [board[1][0], board[1][1], board[1][2]],
+        [board[2][0], board[2][1], board[2][2]],
+        [board[0][0], board[1][0], board[2][0]],
+        [board[0][1], board[1][1], board[2][1]],
+        [board[0][2], board[1][2], board[2][2]],
+        [board[0][0], board[1][1], board[2][2]],
+        [board[0][2], board[1][1], board[2][0]]
+      ];
+
+      for (const line of lines) {
+        if (line[0] && line[0] === line[1] && line[1] === line[2]) {
+          winner = line[0];
+          showModal(`Jogador ${winner} ganhou!`);
+          messageElement.textContent = `Jogador ${winner} ganhou!`;
+          messageElement.className = 'message winner';
+          gameActive = false;
+
+          if (winner === 'X') {
+            winsX++;
+            createParticles(window.innerWidth / 2, window.innerHeight / 2, '#f87171');
+          } else {
+            winsO++;
+            createParticles(window.innerWidth / 2, window.innerHeight / 2, '#60a5fa');
+          }
+          saveWins();
+          updateWinsDisplay();
+          if (isSound) winSound.play();
+          animateParticles();
+          return;
+        }
+      }
+    }
+
+    function isBoardFull() {
+      return board.flat().every(cell => cell !== '');
+    }
+
+    /**
+     * Mostra modal de fim de jogo
+     * @param {string} message - Mensagem a ser exibida
+     */
+    function showModal(message) {
+      modalMessage.textContent = message;
+      gameOverModal.style.display = 'flex';
+      closeModalBtn.focus();
+      clearInterval(timerInterval);
+    }
+
+    function updateHistory() {
+      historyList.innerHTML = '';
+      moveHistory.slice(-5).forEach(move => {
+        const li = document.createElement('li');
+        li.textContent = move;
+        historyList.appendChild(li);
+      });
+    }
+
+    /**
+     * IA com minimax e alpha-beta pruning
+     */
+    function iaPlay() {
+      if (!gameActive || currentPlayer !== 'O') return;
+
+      const difficulty = difficultySelect.value;
+      const depth = difficulty === 'easy' ? 2 : difficulty === 'medium' ? 4 : 6;
+      const randomness = difficulty === 'easy' ? 0.4 : difficulty === 'medium' ? 0.2 : 0;
+
+      function evaluate() {
+        for (const line of getLines()) {
+          if (line.every(c => c === 'O')) return 10;
+          if (line.every(c => c === 'X')) return -10;
+        }
+        return 0;
+      }
+
+      function getLines() {
+        return [
+          [board[0][0], board[0][1], board[0][2]],
+          [board[1][0], board[1][1], board[1][2]],
+          [board[2][0], board[2][1], board[2][2]],
+          [board[0][0], board[1][0], board[2][0]],
+          [board[0][1], board[1][1], board[2][1]],
+          [board[0][2], board[1][2], board[2][2]],
+          [board[0][0], board[1][1], board[2][2]],
+          [board[0][2], board[1][1], board[2][0]]
+        ];
+      }
+
+      function getEmptyCells() {
+        const empties = [];
+        const preferred = [[1,1], [0,0], [0,2], [2,0], [2,2]]; // Prioriza centro e cantos
+        preferred.forEach(([i, j]) => {
+          if (board[i][j] === '') empties.push({row: i, col: j});
+        });
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            if (board[i][j] === '' && !empties.some(e => e.row === i && e.col === j)) {
+              empties.push({row: i, col: j});
+            }
+          }
+        }
+        return empties;
+      }
+
+      function simulateMove(player, row, col) {
+        const placements = player === 'O' ? placementsO : placementsX;
+        if (placements.length >= 3) {
+          const oldest = placements.shift();
+          board[oldest.row][oldest.col] = '';
+        }
+        board[row][col] = player;
+        placements.push({row, col});
+      }
+
+      function minimax(depth, alpha, beta, isMax) {
+        const score = evaluate();
+        if (score !== 0) return score;
+        if (isBoardFull() || depth === 0) return 0;
+
+        const empties = getEmptyCells();
+        if (isMax) {
+          let best = -Infinity;
+          for (const {row, col} of empties) {
+            const oldBoard = board.map(r => r.slice());
+            const oldPlacements = [...placementsO];
+            simulateMove('O', row, col);
+            const value = minimax(depth - 1, alpha, beta, false);
+            board = oldBoard;
+            placementsO = oldPlacements;
+            best = Math.max(best, value);
+            alpha = Math.max(alpha, best);
+            if (beta <= alpha) break;
+          }
+          return best;
+        } else {
+          let best = Infinity;
+          for (const {row, col} of empties) {
+            const oldBoard = board.map(r => r.slice());
+            const oldPlacements = [...placementsX];
+            simulateMove('X', row, col);
+            const value = minimax(depth - 1, alpha, beta, true);
+            board = oldBoard;
+            placementsX = oldPlacements;
+            best = Math.min(best, value);
+            beta = Math.min(beta, best);
+            if (beta <= alpha) break;
+          }
+          return best;
+        }
+      }
+
+      let move = null;
+      if (Math.random() < randomness) {
+        const empties = getEmptyCells();
+        move = empties[Math.floor(Math.random() * empties.length)];
+      } else {
+        let bestVal = -Infinity;
+        const empties = getEmptyCells();
+        empties.forEach(({row, col}) => {
+          const oldBoard = board.map(r => r.slice());
+          const oldPlacements = [...placementsO];
+          simulateMove('O', row, col);
+          const moveVal = minimax(depth, -Infinity, Infinity, false);
+          board = oldBoard;
+          placementsO = oldPlacements;
+          if (moveVal > bestVal) {
+            bestVal = moveVal;
+            move = {row, col};
+          }
+        });
+      }
+
+      if (move) handleCellClick(move.row, move.col);
+    }
+
+    /**
+     * Reseta o jogo
+     */
+    function resetGame() {
+      board = [['', '', ''], ['', '', ''], ['', '', '']];
+      currentPlayer = 'X';
+      placementsX = [];
+      placementsO = [];
+      gameActive = true;
+      winner = null;
+      moveHistory = [];
+      updateHistory();
+      updateMessage();
+      renderBoard();
+      startTimer();
+      gameOverModal.style.display = 'none';
+      particles = [];
+    }
+
+    function resetRanking() {
+      if (confirm('Tem certeza que deseja resetar o ranking?')) {
+        winsX = 0;
+        winsO = 0;
+        draws = 0;
+        saveWins();
+        updateWinsDisplay();
+      }
+    }
+
+    // Eventos
+    aiToggle.addEventListener('change', () => {
+      isAI = aiToggle.checked;
+      resetGame();
+    });
+
+    themeToggle.addEventListener('change', () => {
+      document.body.dataset.theme = themeToggle.checked ? 'dark' : 'light';
+      localStorage.setItem('theme', document.body.dataset.theme);
+    });
+
+    soundToggle.addEventListener('change', () => {
+      isSound = soundToggle.checked;
+      localStorage.setItem('sound', isSound);
+    });
+
+    toggleHistoryBtn.addEventListener('click', () => {
+      historyElement.classList.toggle('show');
+      toggleHistoryBtn.textContent = historyElement.classList.contains('show') ? 'Esconder Histórico' : 'Mostrar Histórico';
+    });
+
+    resetBtn.addEventListener('click', resetGame);
+    resetRankingBtn.addEventListener('click', resetRanking);
+    closeModalBtn.addEventListener('click', resetGame);
+    closeModalBtn.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        resetGame();
+      }
+    });
+
+    // Inicialização
+    updateWinsDisplay();
+    updateMessage();
+    renderBoard();
+    startTimer();
+  </script>
+</body>
+</html>
