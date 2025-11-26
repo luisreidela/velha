@@ -9,8 +9,6 @@ const winsOElement       = document.getElementById('winsO');
 // ----- Estado do jogo -----
 let board         = [['', '', ''], ['', '', ''], ['', '', '']];
 let currentPlayer = 'X';
-let placementsX   = [];
-let placementsO   = [];
 let gameActive    = true;
 let winner        = null;
 
@@ -69,16 +67,8 @@ function renderBoard() {
 function handleCellClick(row, col) {
   if (!gameActive || board[row][col] !== '') return;
 
-  // Limita a 3 peças por jogador, removendo a mais antiga
-  let placements = currentPlayer === 'X' ? placementsX : placementsO;
-  if (placements.length >= 3) {
-    const oldest = placements.shift();
-    board[oldest.row][oldest.col] = '';
-  }
-
   // Marca a jogada
   board[row][col] = currentPlayer;
-  placements.push({ row, col, timestamp: Date.now() });
 
   checkWinner();
   if (gameActive && isBoardFull()) {
@@ -93,25 +83,17 @@ function handleCellClick(row, col) {
   }
 
   renderBoard();
-
-  // Se for vez da IA (jogador O), chama com delay
-  if (gameActive && currentPlayer === 'O') {
-    setTimeout(iaPlay, 400);
-  }
 }
 
-// ----- Verifica vitória real -----
+// ----- Verifica vitória -----
 function checkWinner() {
   const lines = [
-    // Hor.
     [board[0][0], board[0][1], board[0][2]],
     [board[1][0], board[1][1], board[1][2]],
     [board[2][0], board[2][1], board[2][2]],
-    // Ver.
     [board[0][0], board[1][0], board[2][0]],
     [board[0][1], board[1][1], board[2][1]],
     [board[0][2], board[1][2], board[2][2]],
-    // Diags.
     [board[0][0], board[1][1], board[2][2]],
     [board[0][2], board[1][1], board[2][0]]
   ];
@@ -137,66 +119,10 @@ function isBoardFull() {
   return board.flat().every(cell => cell !== '');
 }
 
-// ----- IA estratégica -----
-function iaPlay() {
-  if (!gameActive || currentPlayer !== 'O') return;
-
-  // Tenta vencer ou bloquear
-  function findBestMove(player) {
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-        if (board[i][j] === '') {
-          board[i][j] = player;
-          const win = checkSimulatedWin(player);
-          board[i][j] = '';
-          if (win) return { row: i, col: j };
-        }
-      }
-    }
-    return null;
-  }
-
-  function checkSimulatedWin(player) {
-    const lines = [
-      [board[0][0], board[0][1], board[0][2]],
-      [board[1][0], board[1][1], board[1][2]],
-      [board[2][0], board[2][1], board[2][2]],
-      [board[0][0], board[1][0], board[2][0]],
-      [board[0][1], board[1][1], board[2][1]],
-      [board[0][2], board[1][2], board[2][2]],
-      [board[0][0], board[1][1], board[2][2]],
-      [board[0][2], board[1][1], board[2][0]]
-    ];
-    return lines.some(line => line.filter(c => c === player).length === 3);
-  }
-
-  // 1) tentar vencer
-  let move = findBestMove('O');
-  // 2) bloquear X
-  if (!move) move = findBestMove('X');
-  // 3) aleatório
-  if (!move) {
-    const empties = [];
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-        if (board[i][j] === '') empties.push({ row: i, col: j });
-      }
-    }
-    move = empties[Math.floor(Math.random() * empties.length)];
-  }
-
-  // Executa
-  if (move) {
-    handleCellClick(move.row, move.col);
-  }
-}
-
 // ----- Reset e eventos -----
 function resetGame() {
   board         = [['', '', ''], ['', '', ''], ['', '', '']];
   currentPlayer = 'X';
-  placementsX   = [];
-  placementsO   = [];
   gameActive    = true;
   winner        = null;
   updateMessage();
