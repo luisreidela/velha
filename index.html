@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jogo da Velha Limitado - Avançado</title>
+  <title>Jogo da Velha</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -68,19 +68,9 @@
       animation: placeAnim 0.3s ease-in-out;
     }
 
-    .cell.removing {
-      animation: removeAnim 0.3s ease-in-out;
-      opacity: 0;
-    }
-
     @keyframes placeAnim {
       0% { transform: scale(0.5); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
-    }
-
-    @keyframes removeAnim {
-      0% { transform: scale(1); opacity: 1; }
-      100% { transform: scale(0.5); opacity: 0; }
     }
 
     .x-mark {
@@ -256,12 +246,6 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .timer {
-      font-size: 1.25rem;
-      margin: 0.5rem 0;
-      color: #facc15;
-    }
-
     canvas {
       position: fixed;
       top: 0;
@@ -287,9 +271,8 @@
   </style>
 </head>
 <body>
-  <h1>Jogo da Velha Limitado</h1>
+  <h1>Jogo da Velha</h1>
   <p class="message turn" id="message">Vez do jogador X</p>
-  <p class="timer" id="timer">Tempo: 30s</p>
 
   <div class="board" id="board" aria-label="Tabuleiro do jogo da velha"></div>
 
@@ -359,7 +342,6 @@
     // Elementos do DOM
     const boardElement = document.getElementById('board');
     const messageElement = document.getElementById('message');
-    const timerElement = document.getElementById('timer');
     const resetBtn = document.getElementById('resetBtn');
     const resetRankingBtn = document.getElementById('resetRankingBtn');
     const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
@@ -385,15 +367,11 @@
     // Estado do jogo
     let board = [['', '', ''], ['', '', ''], ['', '', '']];
     let currentPlayer = 'X';
-    let placementsX = [];
-    let placementsO = [];
     let gameActive = true;
     let winner = null;
     let isAI = aiToggle.checked;
     let isSound = soundToggle.checked;
     let moveHistory = [];
-    let timer = 30;
-    let timerInterval = null;
 
     // Carrega configurações
     let winsX = parseInt(localStorage.getItem('winsX')) || 0;
@@ -462,22 +440,6 @@
       messageElement.className = 'message turn';
     }
 
-    function startTimer() {
-      if (timerInterval) clearInterval(timerInterval);
-      timer = 30;
-      timerElement.textContent = `Tempo: ${timer}s`;
-      timerInterval = setInterval(() => {
-        timer--;
-        timerElement.textContent = `Tempo: ${timer}s`;
-        if (timer <= 0) {
-          currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-          updateMessage();
-          if (isAI && currentPlayer === 'O') setTimeout(iaPlay, 600);
-          startTimer();
-        }
-      }, 1000);
-    }
-
     /**
      * Renderiza o tabuleiro com animações
      */
@@ -515,29 +477,13 @@
     function handleCellClick(row, col) {
       if (!gameActive || board[row][col] !== '') return;
 
-      let placements = currentPlayer === 'X' ? placementsX : placementsO;
-      let removedCell = null;
-
-      if (placements.length >= 3) {
-        const oldest = placements.shift();
-        board[oldest.row][oldest.col] = '';
-        removedCell = { row: oldest.row, col: oldest.col };
-      }
-
       board[row][col] = currentPlayer;
-      placements.push({ row, col, timestamp: Date.now() });
       moveHistory.push(`${currentPlayer} jogou na linha ${row + 1}, coluna ${col + 1}`);
       updateHistory();
 
       if (isSound) placeSound.play();
 
       renderBoard();
-
-      if (removedCell) {
-        const removedElem = boardElement.children[removedCell.row * 3 + removedCell.col];
-        removedElem.classList.add('removing');
-        setTimeout(() => removedElem.classList.remove('removing'), 300);
-      }
 
       const newElem = boardElement.children[row * 3 + col];
       newElem.classList.add('placing');
@@ -558,7 +504,6 @@
       if (gameActive) {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
         updateMessage();
-        startTimer();
       }
 
       if (gameActive && isAI && currentPlayer === 'O') {
@@ -617,7 +562,6 @@
       modalMessage.textContent = message;
       gameOverModal.style.display = 'flex';
       closeModalBtn.focus();
-      clearInterval(timerInterval);
     }
 
     function updateHistory() {
@@ -677,13 +621,7 @@
       }
 
       function simulateMove(player, row, col) {
-        const placements = player === 'O' ? placementsO : placementsX;
-        if (placements.length >= 3) {
-          const oldest = placements.shift();
-          board[oldest.row][oldest.col] = '';
-        }
         board[row][col] = player;
-        placements.push({row, col});
       }
 
       function minimax(depth, alpha, beta, isMax) {
@@ -696,11 +634,9 @@
           let best = -Infinity;
           for (const {row, col} of empties) {
             const oldBoard = board.map(r => r.slice());
-            const oldPlacements = [...placementsO];
             simulateMove('O', row, col);
             const value = minimax(depth - 1, alpha, beta, false);
             board = oldBoard;
-            placementsO = oldPlacements;
             best = Math.max(best, value);
             alpha = Math.max(alpha, best);
             if (beta <= alpha) break;
@@ -710,11 +646,9 @@
           let best = Infinity;
           for (const {row, col} of empties) {
             const oldBoard = board.map(r => r.slice());
-            const oldPlacements = [...placementsX];
             simulateMove('X', row, col);
             const value = minimax(depth - 1, alpha, beta, true);
             board = oldBoard;
-            placementsX = oldPlacements;
             best = Math.min(best, value);
             beta = Math.min(beta, best);
             if (beta <= alpha) break;
@@ -732,11 +666,9 @@
         const empties = getEmptyCells();
         empties.forEach(({row, col}) => {
           const oldBoard = board.map(r => r.slice());
-          const oldPlacements = [...placementsO];
           simulateMove('O', row, col);
           const moveVal = minimax(depth, -Infinity, Infinity, false);
           board = oldBoard;
-          placementsO = oldPlacements;
           if (moveVal > bestVal) {
             bestVal = moveVal;
             move = {row, col};
@@ -753,15 +685,12 @@
     function resetGame() {
       board = [['', '', ''], ['', '', ''], ['', '', '']];
       currentPlayer = 'X';
-      placementsX = [];
-      placementsO = [];
       gameActive = true;
       winner = null;
       moveHistory = [];
       updateHistory();
       updateMessage();
       renderBoard();
-      startTimer();
       gameOverModal.style.display = 'none';
       particles = [];
     }
@@ -811,7 +740,6 @@
     updateWinsDisplay();
     updateMessage();
     renderBoard();
-    startTimer();
   </script>
 </body>
 </html>
